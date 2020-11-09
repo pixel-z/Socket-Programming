@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <string.h>
+#include<fcntl.h>
 #include<unistd.h>
 #define PORT 8000
 #define SIZE 100000000
@@ -28,7 +29,27 @@ char **space_tokenize(char *input_str)
 
 void downloadFile(int sockfd)
 {
+    char check[2];
+    recv(sockfd,check,sizeof(check),0);
+    if (strcmp(check,"N")==0)
+    {
+        // file doesn't exist
+        return;
+    }
+
+    int fd = open(,);
     
+    while(1)
+    {
+        char *buffer=malloc(SIZE);
+        
+        if(recv(sockfd, buffer, SIZE, 0)<=0)
+            break;  // done downloading
+
+        // send acknowledgement that message received
+        send(socket, "done", 5, 0);
+
+    }
 }
 
 int main(int argc, char *argv[])
@@ -74,26 +95,15 @@ int main(int argc, char *argv[])
 
         printf("> ");
         getline(&input,&len,stdin);
+        send(sock,input,len,0);   // sending command "get <file1> <file2>", server handles the other
 
         if (strcmp(input,"exit\n") == 0)
         {
-            send(sock,"exit",5,0);
             sleep(1); // so that server first exits (if client 1st exits then garbage is printed)
             return -1;
         }
-
         char **tokenized_command = space_tokenize(input);
-        if (no_commands==0) 
-            continue;
-        if(strcmp(tokenized_command[0],"get")==0)
-        {
-            for (int i = 1; i < no_commands; i++)
-            {
-                send(sock,tokenized_command[1],strlen(tokenized_command[1]),0);
-            }
-            
-        }
-        
+
         
     }
     

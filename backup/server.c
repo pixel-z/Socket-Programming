@@ -3,9 +3,58 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <string.h>
-#define PORT 8000
+#include<fcntl.h>
 #include<unistd.h>
+#define PORT 8000
 #define SIZE 100000000
+
+int no_commands = 0;
+
+char **space_tokenize(char *input_str)
+{
+    char **tokens;
+    char *command;
+    tokens=malloc(1024*sizeof(char *));
+    command=strtok(input_str," \n\t\a\r");
+
+    while (command!=NULL)
+    {
+        tokens[no_commands++]=command;
+        command=strtok(NULL," \n\t\a\r");
+    }
+    tokens[no_commands]=NULL;
+    return tokens;
+}
+
+int uploadFile(char *filename, int sockfd)
+{
+    int fd = open(filename,O_RDONLY);
+    if (fd<0)
+    {
+        perror("open");
+        send(sockfd,"N",2,0);
+        return -1;
+    }
+    send(sockfd,"Y",2,0);   // tell client that file exists
+
+    while (1)
+    {
+        char *buffer=malloc(SIZE);
+        read(fd,buffer,SIZE);
+        send(sockfd,buffer,strlen(buffer),0);
+
+        // acknowledge that receiver received this message, then only send in next loop
+        char rec[5];
+        recv(sockfd,rec,5,0);    // this waits (used to sync server & client)
+
+        if (strlen(buffer)<SIZE)
+        {
+            // done with reading
+            break;    
+        }
+    }
+    return 0;
+}
 
 int main(int argc, char *argv[])
 {
@@ -21,10 +70,10 @@ int main(int argc, char *argv[])
         perror("socket failed");
         exit(EXIT_FAILURE);
     }
+    printf("Server socket created successfully\n");
 
     // This is to lose the pesky "Address already in use" error message
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
-                                                  &opt, sizeof(opt))) // SOL_SOCKET is the socket layer itself
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,&opt, sizeof(opt))) // SOL_SOCKET is the socket layer itself
     {
         perror("setsockopt");
         exit(EXIT_FAILURE);
@@ -34,12 +83,12 @@ int main(int argc, char *argv[])
     address.sin_port = htons( PORT );    // Server port to open. Htons converts to Big Endian - Left to Right. RTL is Little Endian
 
     // Forcefully attaching socket to the port 8080
-    if (bind(server_fd, (struct sockaddr *)&address,
-                                 sizeof(address))<0)
+    if (bind(server_fd, (struct sockaddr *)&address,sizeof(address))<0)
     {
         perror("bind failed");
         exit(EXIT_FAILURE);
     }
+    printf("Binding done\n");
 
     // Port bind is done. You want to wait for incoming connections and handle them in some way.
     // The process is two step: first you listen(), then you accept()
@@ -48,10 +97,10 @@ int main(int argc, char *argv[])
         perror("listen");
         exit(EXIT_FAILURE);
     }
+    printf("Listening...\n");
 
     // returns a brand new socket file descriptor to use for this single accepted connection. Once done, use send and recv
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
-                       (socklen_t*)&addrlen))<0)
+    if ((new_socket = accept(server_fd, (struct sockaddr *)&address,(socklen_t*)&addrlen))<0)
     {
         perror("accept");
         exit(EXIT_FAILURE);
@@ -59,33 +108,24 @@ int main(int argc, char *argv[])
 
     while (1)
     {
+        no_commands = 0;
         valread = read(new_socket , buffer, 1024);  // read infromation received into the buffer
 
-        if (strcmp(buffer,"exit")==0)
+        if (strcmp(buffer,"exit\n")==0)
             return 1;
         
-        // buffer is filename
-        FILE *fp = fopen(buffer,"r");
-        if (fp==NULL)
-        {
-            printf("DOESNT EXIST\n");
-            continue;
-        }
+        char **tokenized_command = space_tokenize(buffer);
         
-        // uploading of file
-        char line[1024];
-        while (fgets(line, sizeof(line), fp) != NULL)
+        if (no_commands == 0) 
+            continue;
+        if (strcmp(tokenized_command[0],"get")==0)
         {
-            if (send(new_socket, line, sizeof(line), 0) == -1) 
-            {
-                perror("Error in sending file");
-                exit(1);
-            }
-            bzero(line, sizeof(line));
+            uploadFile(tokenized_command[1],new_socket);
+            printf("%s finished uploading by server\n",tokenized_command[1]);
         }
-        printf("File uploaded successfully\n");
         
     }
     
+
     return 0;
 }
