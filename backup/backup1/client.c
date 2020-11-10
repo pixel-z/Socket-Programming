@@ -5,7 +5,6 @@
 #include <netinet/in.h>
 #include <string.h>
 #include<unistd.h>
-#include<fcntl.h>
 #define PORT 8000
 #define SIZE 100000000
 
@@ -27,12 +26,18 @@ char **space_tokenize(char *input_str)
     return tokens;
 }
 
+void downloadFile(int sockfd)
+{
+    
+}
+
 int main(int argc, char *argv[])
 {
     int sock = 0, valread;
     struct sockaddr_in address;
     struct sockaddr_in serv_addr;
     // char *hello = "msg from client";
+    char buffer[1024] = {0};
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
@@ -82,43 +87,27 @@ int main(int argc, char *argv[])
             continue;
         if(strcmp(tokenized_command[0],"get")==0)
         {
-            // no_commands = no of files to be copied
             for (int i = 1; i < no_commands; i++)
             {
                 send(sock,tokenized_command[i],strlen(tokenized_command[i]),0);
 
-                // wait till upload is done
-                char buf[1024];
-                recv(sock,buf,1024,0);
-                if (strcmp(buf,"error") == 0)
+                char str[10]={0};
+                int r = recv(sock,str,10,0);    // recv 1
+                printf("%s\n",str);
+                if (strcmp(str,"error")==0)
                 {
-                    printf("File error: %s\n",tokenized_command[i]);
-                    // continue;
-                    break;
+                    // file doesnt exist
+                    printf("file corrupted\n");
+                    continue;
                 }
-                
-                // copying file (downloading)
-                int fd = open("out.txt",O_CREAT | O_TRUNC | O_WRONLY, 7777);
-                FILE *fp = fopen("out.txt", "w");
-                while(1)
+                else
                 {
-                    char buffer[1024] = {0};
-                    int ret = recv(sock, buffer, 1024, 0);
-                    if (ret <= 0 || strcmp(buffer, "end")==0)
-                        break;
-                    printf("%s", buffer);
-                    // fprintf(fp, "%s", buffer);
-                    // fwrite(buffer,1,sizeof(buffer),fp);
-                    write(fd, buffer, strlen(buffer));
-                    
-                    // Acknowledgement
-                    send(sock, "done", 5, 0);
-
-                    bzero(buffer, 1024);
+                    downloadFile(sock);
                 }
-                printf("\nCopying %s file done\n",tokenized_command[i]);
             }
+            
         }
+        
         
     }
     

@@ -7,6 +7,23 @@
 #include<unistd.h>
 #define SIZE 100000000
 
+int uploadFile(FILE *fp,int new_socket)
+{
+    // uploading of file
+    char line[1024];
+    while (fgets(line, sizeof(line), fp) != NULL)
+    {
+        if (send(new_socket, line, sizeof(line), 0) == -1) 
+        {
+            perror("Error in sending file");
+            exit(1);
+        }
+        bzero(line, sizeof(line));
+    }
+    printf("File uploaded successfully\n");
+    
+}
+
 int main(int argc, char *argv[])
 {
     int server_fd, new_socket, valread;
@@ -63,39 +80,22 @@ int main(int argc, char *argv[])
 
         if (strcmp(buffer,"exit")==0)
             return 1;
-        
+
+        char str[10];
         // buffer is filename
         FILE *fp = fopen(buffer,"r");
         if (fp==NULL)
         {
-            printf("Invalid\n");
-            send(new_socket,"error",6,0);
+            printf("DOESNT EXIST\n");
+            strcpy(str,"error");
+            send(new_socket,str,strlen(str),0); // send 1
             continue;
         }
-        send(new_socket,"success",8,0);
+        strcpy(str,"ok");
+        send(new_socket,str,strlen(str),0); // send 1
         
-        // uploading of file
-        char line[1024];
-        int flag=0;
-        while (fgets(line, sizeof(line), fp) != NULL)
-        {
-            if (send(new_socket, line, sizeof(line), 0) == -1) 
-            {
-                perror("Error in sending file");
-                flag = 1;
-                break;
-            }
-            bzero(line, sizeof(line));
-
-            // Acknowledgement
-            char check[10];
-            recv(new_socket, check, sizeof(check), 0);
-
-        }
-        if (flag==1) continue;
-        char *end="end";
-        send(new_socket,end,strlen(end),0);
-        printf("File uploaded successfully\n");
+        uploadFile(fp,new_socket);
+        
     }
     
     return 0;
