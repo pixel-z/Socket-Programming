@@ -33,6 +33,7 @@ int main(int argc, char *argv[])
     struct sockaddr_in address;
     struct sockaddr_in serv_addr;
     // char *hello = "msg from client";
+    char buffer[1024] = {0};
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
@@ -84,7 +85,24 @@ int main(int argc, char *argv[])
         {
             for (int i = 1; i < no_commands; i++)
             {
-                
+                char *check = malloc(sizeof(char)*1024);
+                read(sock,check,1024);
+                if (strcmp(check,"error")==0)
+                {
+                    printf("Invalid file\n");
+                    continue;    
+                }
+                else if (strcmp(check,"success")==0)    
+                {
+                    printf("File %s downloading...\n",tokenized_command[i]);
+
+                    char file_size_str[100]={0};
+                    read(sock,file_size_str,100);
+                    long long file_size = atol(file_size_str);
+                    
+                    
+                }
+                bzero(buffer,sizeof(buffer));   // strlen?
             }
             
         }

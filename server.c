@@ -5,6 +5,8 @@
 #include <string.h>
 #define PORT 8000
 #include<unistd.h>
+#include<fcntl.h>
+#include <sys/stat.h>
 #define SIZE 100000000
 
 int no_commands = 0;
@@ -94,9 +96,36 @@ int main(int argc, char *argv[])
         {
             for (int i = 1; i < no_commands; i++)
             {
-                
+                // tokenized_command[i] == filename
+                int fd = open(tokenized_command[i], O_RDONLY);
+
+                if (fd<0)
+                {
+                    printf("Invalid file\n");
+                    char *check = "error";
+                    send(new_socket,check,strlen(check),0);
+                    continue;
+                }
+                else
+                {
+                    printf("File %s found, uploading...\n",tokenized_command[i]);
+                    char *check = "success";
+                    send(new_socket,check,strlen(check),0);
+                    sleep(1);   // because the below send can get mixed up
+
+                    /* Finding file size */
+                    struct stat st;
+                    stat(tokenized_command[i],&st);
+                    long long file_size = st.st_size;
+
+                    char file_size_str[100]={0};
+                    sprintf(file_size_str, "%lld", file_size);
+                    send(new_socket, file_size_str,strlen(file_size_str),0);  // sending file_size to client for progress bar
+
+                    
+                }
+                close(fd);
             }
-            
         }
 
     }
