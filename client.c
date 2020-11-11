@@ -64,17 +64,17 @@ int main(int argc, char *argv[])
     while (1)
     {
         no_commands = 0; 
-        char *input=malloc(sizeof(char)*1024);
+        char *input=NULL;
         size_t len = 0;
 
         printf("> ");
         getline(&input,&len,stdin);
+        send(sock,input,strlen(input),0); // send the whole command to server
 
         if (strcmp(input,"exit\n") == 0)
         {
-            send(sock,"exit",5,0);
             sleep(1); // so that server first exits (if client 1st exits then garbage is printed)
-            return -1;
+            return 1;
         }
 
         char **tokenized_command = space_tokenize(input);
@@ -82,44 +82,12 @@ int main(int argc, char *argv[])
             continue;
         if(strcmp(tokenized_command[0],"get")==0)
         {
-            // no_commands = no of files to be copied
             for (int i = 1; i < no_commands; i++)
             {
-                send(sock,tokenized_command[i],strlen(tokenized_command[i]),0);
-
-                // wait till upload is done
-                char buf[1024];
-                recv(sock,buf,1024,0);
-                if (strcmp(buf,"error") == 0)
-                {
-                    printf("File error: %s\n",tokenized_command[i]);
-                    // continue;
-                    break;
-                }
                 
-                // copying file (downloading)
-                int fd = open("out.txt",O_CREAT | O_TRUNC | O_WRONLY, 7777);
-                FILE *fp = fopen("out.txt", "w");
-                while(1)
-                {
-                    char buffer[1024] = {0};
-                    int ret = recv(sock, buffer, 1024, 0);
-                    if (ret <= 0 || strcmp(buffer, "end")==0)
-                        break;
-                    printf("%s", buffer);
-                    // fprintf(fp, "%s", buffer);
-                    // fwrite(buffer,1,sizeof(buffer),fp);
-                    write(fd, buffer, strlen(buffer));
-                    
-                    // Acknowledgement
-                    send(sock, "done", 5, 0);
-
-                    bzero(buffer, 1024);
-                }
-                printf("\nCopying %s file done\n",tokenized_command[i]);
             }
+            
         }
-        
     }
     
     return 0;

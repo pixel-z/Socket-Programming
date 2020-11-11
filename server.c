@@ -7,12 +7,31 @@
 #include<unistd.h>
 #define SIZE 100000000
 
+int no_commands = 0;
+
+char **space_tokenize(char *input_str)
+{
+    char **tokens;
+    char *command;
+    tokens=malloc(1024*sizeof(char *));
+    command=strtok(input_str," \n\t\a\r");
+
+    while (command!=NULL)
+    {
+        tokens[no_commands++]=command;
+        command=strtok(NULL," \n\t\a\r");
+    }
+    tokens[no_commands]=NULL;
+    return tokens;
+}
+
 int main(int argc, char *argv[])
 {
     int server_fd, new_socket, valread;
     struct sockaddr_in address;  
     int opt = 1;
     int addrlen = sizeof(address);
+    char buffer[1024] = {0};
 
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)  // creates socket, SOCK_STREAM is for TCP. SOCK_DGRAM for UDP
@@ -20,6 +39,7 @@ int main(int argc, char *argv[])
         perror("socket failed");
         exit(EXIT_FAILURE);
     }
+    printf("Socket created\n");
 
     // This is to lose the pesky "Address already in use" error message
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
@@ -39,6 +59,7 @@ int main(int argc, char *argv[])
         perror("bind failed");
         exit(EXIT_FAILURE);
     }
+    printf("Binding done\n");
 
     // Port bind is done. You want to wait for incoming connections and handle them in some way.
     // The process is two step: first you listen(), then you accept()
@@ -47,6 +68,7 @@ int main(int argc, char *argv[])
         perror("listen");
         exit(EXIT_FAILURE);
     }
+    printf("Listening...\n");
 
     // returns a brand new socket file descriptor to use for this single accepted connection. Once done, use send and recv
     if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
@@ -58,44 +80,25 @@ int main(int argc, char *argv[])
 
     while (1)
     {
-        char buffer[1024] = {0};
-        valread = read(new_socket , buffer, 1024);  // read infromation received into the buffer
+        no_commands = 0;
+        char *input = malloc(sizeof(char)*1024);
+        valread = read(new_socket , input, 1024);  // read infromation received into the input
 
-        if (strcmp(buffer,"exit")==0)
+        if (strcmp(input,"exit\n") == 0)
             return 1;
-        
-        // buffer is filename
-        FILE *fp = fopen(buffer,"r");
-        if (fp==NULL)
-        {
-            printf("Invalid\n");
-            send(new_socket,"error",6,0);
+
+        char **tokenized_command = space_tokenize(input);
+        if (no_commands==0)
             continue;
-        }
-        send(new_socket,"success",8,0);
-        
-        // uploading of file
-        char line[1024];
-        int flag=0;
-        while (fgets(line, sizeof(line), fp) != NULL)
+        if (strcmp(tokenized_command[0],"get") == 0)
         {
-            if (send(new_socket, line, sizeof(line), 0) == -1) 
+            for (int i = 1; i < no_commands; i++)
             {
-                perror("Error in sending file");
-                flag = 1;
-                break;
+                
             }
-            bzero(line, sizeof(line));
-
-            // Acknowledgement
-            char check[10];
-            recv(new_socket, check, sizeof(check), 0);
-
+            
         }
-        if (flag==1) continue;
-        char *end="end";
-        send(new_socket,end,strlen(end),0);
-        printf("File uploaded successfully\n");
+
     }
     
     return 0;
