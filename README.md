@@ -1,1 +1,0 @@
-All the files that are send and received have same name for easy debugging and visibility.
