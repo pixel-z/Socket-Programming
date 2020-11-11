@@ -11,6 +11,11 @@
 
 int no_commands = 0;
 
+long long min(long long a, long long b)
+{
+    return (a<b)?a:b;
+}
+
 char **space_tokenize(char *input_str)
 {
     char **tokens;
@@ -100,7 +105,32 @@ int main(int argc, char *argv[])
                     read(sock,file_size_str,100);
                     long long file_size = atol(file_size_str);
                     
-                    
+                    /* Acknowledge that file_size received (for sync) */
+                    char *ack = "ack";
+                    send(sock,ack,strlen(ack),0);
+
+                    /* Actual download */
+                    int fd = open(tokenized_command[i],O_CREAT | O_WRONLY | O_TRUNC, 0600);
+                    char *chunk = malloc(SIZE + 2);
+                    long long done = 0;
+                    while (1)
+                    {
+                        bzero(chunk,sizeof(chunk));
+
+                        long long len_to_upload = min(SIZE,file_size-done);
+                        read(sock,chunk,len_to_upload);
+
+                        write(fd,chunk,len_to_upload);
+                        done+=len_to_upload;
+
+                        if (done>=file_size)
+                            break;
+                    }
+
+                    char comp[10]={0};
+                    read(sock,comp,10);
+                    if (strcmp(comp,"comp")==0)
+                        printf("File %s downloaded\n",tokenized_command[i]);
                 }
                 bzero(buffer,sizeof(buffer));   // strlen?
             }

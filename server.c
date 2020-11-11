@@ -11,6 +11,11 @@
 
 int no_commands = 0;
 
+long long min(long long a, long long b)
+{
+    return (a<b)?a:b;
+}
+
 char **space_tokenize(char *input_str)
 {
     char **tokens;
@@ -122,7 +127,33 @@ int main(int argc, char *argv[])
                     sprintf(file_size_str, "%lld", file_size);
                     send(new_socket, file_size_str,strlen(file_size_str),0);  // sending file_size to client for progress bar
 
-                    
+                    /* Acknowledge that file_size received (for sync) */
+                    char ack[4];
+                    read(new_socket, ack, 3);
+                    // printf("%s\n", ack);
+                    if (strcmp(ack,"ack")==0)
+                    {
+                        /* Actual upload */
+                        long long done=0;
+                        char *chunk = malloc(SIZE + 2);
+                        while (1)
+                        {
+                            bzero(chunk,sizeof(chunk));
+
+                            long long len_to_upload = min(SIZE,file_size-done);
+                            read(fd,chunk,len_to_upload);   // reading from file
+
+                            send(new_socket,chunk,len_to_upload,0); // sending the read part to client
+                            done+=len_to_upload;
+
+                            if (done>=file_size)
+                                break;
+                        }
+                        printf("File %s uploaded\n",tokenized_command[i]);
+                        sleep(1);
+                        char *comp = "comp";
+                        send(new_socket,comp,strlen(comp),0);
+                    }
                 }
                 close(fd);
             }
