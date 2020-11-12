@@ -3,13 +3,14 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <string.h>
-#define PORT 8000
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#define SIZE 1000000
+#define PORT 8000
+#define SIZE 32768
 
 int no_commands = 0;
+// int counter=0;
 
 long long min(long long a, long long b)
 {
@@ -128,9 +129,10 @@ int main(int argc, char *argv[])
                     send(new_socket, file_size_str, strlen(file_size_str), 0); // sending file_size to client for progress bar
 
                     /* Acknowledge that file_size received (for sync) */
-                    char ack[4];
+                    char ack[4]={0};
                     read(new_socket, ack, 3);
                     // printf("%s\n", ack);
+
                     char *tyu = (char *)malloc(100);
                     if (strcmp(ack, "ack") == 0)
                     {
@@ -150,16 +152,17 @@ int main(int argc, char *argv[])
 
                             /* Acknowledgement for chunk */
                             read(new_socket, tyu, 4);
+                            // counter++;
 
                             if (done >= file_size)
                             {
-                                sleep(1);
                                 printf("File %s uploaded\n", tokenized_command[i]);
                                 char *comp = "comp";
                                 send(new_socket, comp, strlen(comp), 0);
                                 break;
                             }
                         }
+                        // printf("counter=%d\n", counter);
                     }
                 }
                 sleep(2);

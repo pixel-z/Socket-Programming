@@ -8,9 +8,10 @@
 #include <fcntl.h>
 #include <arpa/inet.h>
 #define PORT 8000
-#define SIZE 1000000
+#define SIZE 32768
 
 int no_commands = 0;
+// int counter =0;
 
 long long min(long long a, long long b)
 {
@@ -126,8 +127,12 @@ int main(int argc, char *argv[])
                         write(fd, chunk, strlen(chunk));
                         done += strlen(chunk);
 
+                        /* Percentage file copied */
+                        printf("\033[1;31m%LF\r\033[0m", ((long double)done*100)/file_size);
+
                         /* Acknowledgement for chunk */
                         send(sock, "wait", 4, 0);
+                        // counter++;
 
                         if (done >= file_size)
                         {
@@ -140,6 +145,7 @@ int main(int argc, char *argv[])
                             }
                         }
                     }
+                    // printf("counter=%d\n",counter);
                 }
                 bzero(buffer, sizeof(buffer)); // strlen?
             }
